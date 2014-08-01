@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+	<head>
+		<title>halloween 2011</title>
+		<script type="text/javascript" src="js/Box2dWeb-2.1.a.3.min.js"></script>
+		<script type="text/javascript" src="js/RequestAnimationFrame.js"></script>
+		<script type="text/javascript" src="js/rgbcolor.js"></script>
+		<script type="text/javascript" src="js/canvg-1.0.js"></script>		
+		<script type="text/javascript" src="js/BaseController.js"></script>
+		<script type="text/javascript" src="js/TestController.js"></script>
+	</head>
+	
+	<body>
+		<canvas id="canvas" width="640" height="480" style="background: #000; transform: translateZ(0);"></canvas>
+		<br />
+		<input id="btnRun" type="button" value="run" /> <input id="btnSave" type="button" value="save" />
+		
+		<script type="text/javascript">
+		
+			function init() {
+			
+				var looping = true,
+					canvas = document.getElementById('canvas'), context = canvas.getContext('2d'),
+					controller = null;
+				
+				function doLoop() {
+					// TODO
+					controller.update();
+					controller.draw();
+					
+					if(looping) {
+						requestAnimFrame(doLoop);
+					}
+				}
+			
+				// intervalRate, adaptive, context, debugView, scale, gravityX, gravityY
+				controller = new TestController(60, false, context, false, 30, 0, 10);
+			
+				var btnRun = document.getElementById('btnRun');
+				btnRun.addEventListener('click', function() {
+					if(looping) {
+						looping = false;
+						btnRun.value = 'run';
+					} else {
+						btnRun.value = 'stop';	
+						looping = true;
+						doLoop();
+					}
+				}, false);
+				btnRun.value = looping ? 'stop' : 'run';
+				
+				document.getElementById('btnSave').addEventListener('click', function() {
+					window.open(canvas.toDataURL('image/png'), 'canvasWindow');
+				}, false);
+				
+				// Just one initial loop (if looping==false now)
+				doLoop();
+			}
+			
+			document.addEventListener('DOMContentLoaded', function() {
+				init();
+			});
+		</script>
+	</body>
+</html>

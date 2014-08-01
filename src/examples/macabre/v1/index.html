@@ -1,0 +1,566 @@
+<!doctype html>
+<html>
+	<head>
+		<title>halloween 2011</title>
+		<script type="text/javascript" src="Box2dWeb-2.1.a.3.min.js"></script>
+	</head>
+	
+	<body>
+		<canvas id="canvas" width="640" height="480" style="border: 1px solid #000;background: #000;"></canvas>
+	
+		<script async type="text/javascript">
+			// http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+			window.requestAnimFrame = (function(){
+				return  window.requestAnimationFrame       || 
+					window.webkitRequestAnimationFrame || 
+					window.mozRequestAnimationFrame    || 
+					window.oRequestAnimationFrame      || 
+					window.msRequestAnimationFrame     || 
+					function(/* function */ callback, /* DOMElement */ element){
+					window.setTimeout(callback, 1000 / 60);
+				};
+			})();
+		
+			
+			
+			function Entity(id, x, y, center, scale) {
+				this.type = 0;
+				this.id = id;
+				this.x = x;
+				this.y = y;
+				this.angle = 0;
+				this.center = center;
+				this.scale = scale;
+			}
+			
+			Entity.prototype.update = function(state) {
+				this.x = state.x;
+				this.y = state.y;
+				this.center = state.c;
+				this.angle = state.a;
+			}
+			
+			Entity.prototype.draw = function(context) {
+				/*context.fillStyle = 'black';
+				context.beginPath();
+				context.arc(this.x * this.scale, this.y * this.scale, 4, 0, Math.PI * 2, true);
+				context.closePath();
+				context.fill();
+				
+				context.fillStyle = 'yellow';
+				context.beginPath();
+				context.arc(this.center.x * this.scale, this.center.y * this.scale, 2, 0, Math.PI * 2, true);
+				context.closePath();
+				context.fill();*/
+			}
+			
+			Entity.TYPE_HEAD = 1;
+			Entity.TYPE_RECTANGLE = 2;
+			Entity.TYPE_TRUNK = 3;
+			Entity.TYPE_HIPS = 4;
+			
+			Entity.NULL_POINT = {x: null, y: null};
+			
+			Entity.build = function(def) {
+				switch(def.type) {
+					case Entity.TYPE_HEAD:
+						return new HeadEntity(def.id, def.x, def.y, Entity.NULL_POINT, def.radius, def.scale);
+						break;
+					case Entity.TYPE_RECTANGLE:
+						return new RectangleEntity(def.id, def.x, def.y, Entity.NULL_POINT, def.width, def.height, def.scale);
+						break;
+					case Entity.TYPE_TRUNK:
+						return new TrunkEntity(def.id, def.x, def.y, Entity.NULL_POINT, def.widthTop, def.widthBottom, def.height, def.scale);
+					case Entity.TYPE_HIPS:
+						return new HipsEntity(def.id, def.x, def.y, Entity.NULL_POINT, def.widthTop, def.widthBottom, def.height, def.scale);
+						break;
+				}
+			}
+			
+			function HeadEntity(id, x, y, center, radius, scale) {
+				Entity.call(this, id, x, y, center, scale);
+				this.type = Entity.TYPE_HEAD;
+				this.radius = radius;
+			}		
+			HeadEntity.prototype = new Entity();
+			HeadEntity.prototype.constructor = HeadEntity;
+			
+			HeadEntity.prototype.draw = function(ctx) {
+				ctx.fillStyle = 'white';
+				ctx.beginPath();
+				ctx.arc(this.x * this.scale, this.y * this.scale, this.radius * this.scale, 0, Math.PI * 2, true);
+				ctx.closePath();
+				ctx.fill();
+				
+				Entity.prototype.draw.call(this, ctx);
+			}
+			
+			function RectangleEntity(id, x, y, center, width, height, scale) {
+				Entity.call(this, id, x, y, center, scale);
+				this.type = Entity.TYPE_RECTANGLE;
+				this.width = width;
+				this.height = height;
+				this.halfWidth = width * 0.5;
+				this.halfHeight = height * 0.5;
+			}
+			RectangleEntity.prototype = new Entity();
+			RectangleEntity.prototype.constructor = RectangleEntity();
+			
+			RectangleEntity.prototype.draw = function(ctx) {
+				ctx.save();
+				ctx.translate(this.x * this.scale, this.y * this.scale);
+				ctx.rotate(this.angle);
+				ctx.translate(-(this.x) * this.scale, -(this.y) * this.scale);
+				ctx.fillStyle = 'white';
+				ctx.fillRect((this.x-this.halfWidth) * this.scale,
+						   (this.y-this.halfHeight) * this.scale,
+						   (this.halfWidth*2) * this.scale,
+						   (this.halfHeight*2) * this.scale);
+				ctx.restore();
+
+				Entity.prototype.draw.call(this, ctx);
+			}
+			
+			function TrunkEntity(id, x, y, center, widthTop, widthBottom, height, scale) {
+				Entity.call(this, id, x, y, center, scale);
+				this.type = Entity.TYPE_TRUNK;
+				this.widthTop = widthTop;
+				this.widthBottom = widthBottom;
+				this.height = height;
+				
+				// CW
+				var halfWidthTop = widthTop * 0.5,
+					halfWidthBottom = widthBottom * 0.5,
+					halfHeight = height * 0.5;
+					
+				this.points = [
+					{ x: -halfWidthTop, y: -halfHeight },
+					{ x: halfWidthTop, y: -halfHeight },
+					{ x: halfWidthBottom, y: halfHeight },
+					{ x: -halfWidthBottom, y: halfHeight }
+				];
+			}
+			TrunkEntity.prototype = new Entity();
+			TrunkEntity.prototype.constructor = TrunkEntity();
+			
+			TrunkEntity.prototype.draw = function(ctx) {
+				ctx.save();
+				ctx.translate(this.x * this.scale, this.y * this.scale);
+				ctx.rotate(this.angle);
+				ctx.translate(-(this.x) * this.scale, -(this.y) * this.scale);
+				ctx.fillStyle = 'white';
+
+				ctx.beginPath();
+				ctx.moveTo((this.x + this.points[0].x) * this.scale, (this.y + this.points[0].y) * this.scale);
+				for (var i = 1; i < this.points.length; i++) {
+				 ctx.lineTo((this.points[i].x + this.x) * this.scale, (this.points[i].y + this.y) * this.scale);
+				}
+				ctx.lineTo((this.x + this.points[0].x) * this.scale, (this.y + this.points[0].y) * this.scale);
+				ctx.closePath();
+				ctx.fill();
+				ctx.stroke();
+
+				ctx.restore();
+
+				Entity.prototype.draw.call(this, ctx);
+			}
+			
+			function HipsEntity(id, x, y, center, widthTop, widthBottom, height, scale) {
+				Entity.call(this, id, x, y, center, scale);
+				this.type = Entity.TYPE_HIPS;
+				this.widthTop = widthTop;
+				this.widthBottom = widthBottom;
+				this.height = height;
+				
+				// CW
+				var halfWidthTop = widthTop * 0.5,
+					halfWidthBottom = widthBottom * 0.5,
+					halfHeight = height * 0.5;
+					
+				this.points = [
+					{ x: -halfWidthTop, y: -halfHeight },
+					{ x: halfWidthTop, y: -halfHeight },
+					{ x: halfWidthBottom, y: halfHeight },
+					{ x: -halfWidthBottom, y: halfHeight }
+				];
+			}
+			HipsEntity.prototype = new Entity();
+			HipsEntity.prototype.constructor = HipsEntity();
+			HipsEntity.prototype.draw = function(ctx) {
+				TrunkEntity.prototype.draw.call(this, ctx);
+				Entity.prototype.draw.call(this, ctx);
+			}
+			
+			Joint = {
+				TYPE_REVOLUTE: 0,
+				TYPE_DISTANCE: 1
+			}
+			
+			function bSkeleton(intervalRate, adaptive, width, height, scale) {
+				this.intervalRate = parseInt(intervalRate);
+				this.adaptive = adaptive;
+				this.width = width;
+				this.height = height;
+				this.scale = scale;
+				
+				this.bodies = {};
+				
+				this.world = new Box2D.Dynamics.b2World(new Box2D.Common.Math.b2Vec2(0, 20), true);
+				
+				this.fixtureDef = new Box2D.Dynamics.b2FixtureDef();
+				this.fixtureDef.density = 1.0;
+				this.fixtureDef.friction = 0.5;
+				
+				
+				this.bodyDef = new Box2D.Dynamics.b2BodyDef();
+				
+				// Ground
+				this.bodyDef.type = Box2D.Dynamics.b2Body.b2_staticBody;
+				this.bodyDef.position.x = this.width * 0.5 / this.scale;
+				this.bodyDef.position.y = this.height / this.scale;
+				
+				this.fixtureDef.shape = new Box2D.Collision.Shapes.b2PolygonShape();
+				this.fixtureDef.restitution = 0;
+				this.fixtureDef.shape.SetAsBox((this.width - this.width*0.1) / this.scale * 0.5, (10/this.scale) * 0.5);
+				this.world.CreateBody(this.bodyDef).CreateFixture(this.fixtureDef);
+				
+				
+				this.fixtureDef.restitution = 0.2;
+			}
+			
+			bSkeleton.prototype.update = function() {
+				var start = Date.now();
+				var stepRate = (this.adaptive) ? (now - this.lastTimestamp) / 1000 : (1 / this.intervalRate);
+				this.world.Step(stepRate, 10, 10);
+				this.world.ClearForces();
+				return(Date.now() - start);
+			}
+			
+			bSkeleton.prototype.getState = function() {
+				var state = {};
+				for(var b = this.world.GetBodyList(); b; b = b.m_next) {
+					if(b.IsActive() && typeof b.GetUserData() !== 'undefined' && b.GetUserData() != null) {
+						state[b.GetUserData()] = {x: b.GetPosition().x, y: b.GetPosition().y, a: b.GetAngle(), c: {x: b.GetWorldCenter().x, y: b.GetWorldCenter().y}};
+					}
+				}
+				return state;
+			}
+			
+			bSkeleton.prototype.setBodies = function(entities) {
+				this.bodyDef.type = Box2D.Dynamics.b2Body.b2_dynamicBody;
+				
+				for(var id in entities) {
+
+					var entity = entities[id];
+					
+					if(entity.type === Entity.TYPE_HEAD) {
+					
+						this.fixtureDef.shape = new Box2D.Collision.Shapes.b2CircleShape(entity.radius);
+					
+					} else if(entity.type === Entity.TYPE_RECTANGLE) {
+					
+						this.fixtureDef.shape = new Box2D.Collision.Shapes.b2PolygonShape();
+						this.fixtureDef.shape.SetAsBox(entity.width * 0.5, entity.height * 0.5);
+					
+					} else if(entity.type === Entity.TYPE_TRUNK || entity.type === Entity.TYPE_HIPS) {
+					
+						var points = [];
+						for(var i = 0; i < entity.points.length; i++) {
+							var vec = new Box2D.Common.Math.b2Vec2();
+							vec.Set(entity.points[i].x, entity.points[i].y);
+							points[i] = vec;
+						}
+						this.fixtureDef.shape = new Box2D.Collision.Shapes.b2PolygonShape();
+						this.fixtureDef.shape.SetAsArray(points);
+					}
+					
+					this.bodyDef.position.x = entity.x;
+					this.bodyDef.position.y = entity.y;
+					this.bodyDef.userData = entity.id;
+					var body = this.world.CreateBody(this.bodyDef);
+					this.bodies[id] = body;
+					body.CreateFixture(this.fixtureDef);
+				}
+				this.ready = true;
+			}
+			
+			bSkeleton.prototype.setJoints = function(joints) {
+				
+				for(var i = 0; i < joints.length; i++) {
+				
+					var params = joints[i];
+					var bodyA = this.bodies[params.a];
+					var bodyB = this.bodies[params.b];
+					
+					if(params.type === Joint.TYPE_REVOLUTE) {
+						
+						var joint = new Box2D.Dynamics.Joints.b2RevoluteJointDef();
+						
+						var center = new Box2D.Common.Math.b2Vec2();
+						center.Set(params.x, params.y);
+						joint.Initialize(bodyA, bodyB, center);
+						var angle1 = params.angle1 || -1;
+						var angle2 = params.angle2 || -1;
+						if(angle1 != angle2) {
+							joint.lowerAngle = angle1;
+							joint.upperAngle = angle2;
+							joint.enableLimit = true;
+						}
+						
+					} else if(params.type === Joint.TYPE_DISTANCE) {
+						
+						var joint = new Box2D.Dynamics.Joints.b2DistanceJointDef();
+						var anchorA = new Box2D.Common.Math.b2Vec2(params.x1, params.y1);
+						var anchorB = new Box2D.Common.Math.b2Vec2(params.x2, params.y2);
+						joint.Initialize(bodyA, bodyB, anchorA, anchorB);
+						
+					}
+					
+					this.world.CreateJoint(joint);
+				}
+			}
+			
+			//
+			
+			function init() {
+			
+				var scale = 30,
+					world = {}, bodiesState = null, box = null,
+					mouseX, mouseY, isMouseDown = false, mousePositionVec, selectedBody, mouseJoint,
+					canvas = document.getElementById('canvas'), 
+					ctx = canvas.getContext('2d'),
+					canvasWidth = ctx.canvas.width,
+					canvasHeight = ctx.canvas.height,
+					canvasPosition = getElementPosition(canvas);
+				
+			
+				function handleMouseMove(e) {
+					mouseX = (e.clientX - canvasPosition.x) / scale;
+					mouseY = (e.clientY - canvasPosition.y) / scale;
+				}
+			
+				function getBodyCallback(fixture) {
+					if(fixture.GetBody().GetType() != Box2D.Dynamics.b2Body.b2_staticBody) {
+						if(fixture.GetShape().TestPoint(fixture.GetBody().GetTransform(), mousePositionVec)) {
+							selectedBody = fixture.GetBody();
+							return false;
+						}
+					}
+					return true;
+				}
+			
+				function getBodyAtMouse() {
+					mousePositionVec = new Box2D.Common.Math.b2Vec2(mouseX, mouseY);
+					var aabb = new Box2D.Collision.b2AABB();
+					aabb.lowerBound.Set(mouseX - 0.001, mouseY - 0.001);
+					aabb.upperBound.Set(mouseX + 0.001, mouseY + 0.001);
+				
+					// Query world for overlapping shapes
+					selectedBody = null;
+					box.world.QueryAABB(getBodyCallback, aabb);
+					return selectedBody;
+				}
+			
+				function getElementPosition(el) {
+					var left = el.offsetLeft;
+					var top = el.offsetTop;
+					var e = el.offsetParent;
+
+					do {
+					   left += e.offsetLeft;
+						top += e.offsetTop;
+
+					} while (e = e.offsetParent);
+
+					return {x: left, y: top};
+				}
+						
+				function update() {
+				
+					if(isMouseDown && (!mouseJoint)) {
+						var body = getBodyAtMouse();
+						if(body) {
+							var mouseJointDef = new Box2D.Dynamics.Joints.b2MouseJointDef();
+							mouseJointDef.bodyA = box.world.GetGroundBody();
+							mouseJointDef.bodyB = body;
+							mouseJointDef.target.Set(mouseX, mouseY);
+							mouseJointDef.collideConnected = true;
+							mouseJointDef.maxForce = 600.0 * body.GetMass();
+							mouseJoint = box.world.CreateJoint(mouseJointDef);
+							body.SetAwake(true);
+						}
+					}
+				
+					if(mouseJoint) {
+						if(isMouseDown) {
+							mouseJoint.SetTarget(new Box2D.Common.Math.b2Vec2(mouseX, mouseY));
+						} else {
+							box.world.DestroyJoint(mouseJoint);
+							mouseJoint = null;
+						}
+					}
+				
+					box.update();
+					bodiesState = box.getState();
+				
+					for(var id in bodiesState) {
+						var entity = world[id];
+						if(entity) entity.update(bodiesState[id]);
+					}
+				}
+			
+				var ctx = document.getElementById('canvas').getContext('2d'),
+					canvasWidth = ctx.canvas.width,
+					canvasHeight = ctx.canvas.height;
+			
+				function draw() {
+					ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+					//box.world.DrawDebugData();
+					for(var id in world) {
+						var entity = world[id];
+						entity.draw(ctx);
+					}
+				}
+			
+			
+				var ang1 = -Math.PI * 0.15, ang2 = Math.PI * 0.15;
+			
+				var entitiesState = {
+					// head
+					'0': { type: Entity.TYPE_HEAD, id: 0, x: 10, y: 0, radius: 1.25, scale: scale },
+
+					// neck
+					'0_1': { type: Entity.TYPE_RECTANGLE, id: '0_1', x: 10, y: 1.5, width: 0.4, height: 0.4, scale: scale },
+					'0_2': { type: Entity.TYPE_RECTANGLE, id: '0_2', x: 10, y: 1.9, width: 0.4, height: 0.4, scale: scale },
+					'0_3': { type: Entity.TYPE_RECTANGLE, id: '0_3', x: 10, y: 2.3, width: 0.4, height: 0.4, scale: scale },
+					
+					// trunk
+					'10': { type: Entity.TYPE_TRUNK, id: 10, x: 10, y: 3, widthTop: 3, widthBottom: 1, height: 2, scale: scale},
+					// hips
+					'20': { type: Entity.TYPE_HIPS, id: 20, x: 10, y: 4.5, widthTop: 2, widthBottom: 1, height: 1, scale: scale},
+					
+					// left arm
+					'30_1': { type: Entity.TYPE_RECTANGLE, id: '30_1', x: 8.5, y: 3, width: 0.3, height: 2.0, scale: scale },
+					'30_2': { type: Entity.TYPE_RECTANGLE, id: '30_2', x: 8.5, y: 4.5, width: 0.3, height: 1.0, scale: scale },
+					// left hand
+					'300': { type: Entity.TYPE_RECTANGLE, id: '300', x: 8.5, y: 5, width: 0.3, height: 0.3, scale: scale },
+					'300_1': { type: Entity.TYPE_RECTANGLE, id: '300_1', x: 8.3, y: 5.4, width: 0.1, height: 0.8, scale: scale },
+					'300_2': { type: Entity.TYPE_RECTANGLE, id: '300_2', x: 8.42, y: 5.5, width: 0.1, height: 1, scale: scale },
+					'300_3': { type: Entity.TYPE_RECTANGLE, id: '300_3', x: 8.53, y: 5.7, width: 0.1, height: 1.2, scale: scale },
+					'300_4': { type: Entity.TYPE_RECTANGLE, id: '300_4', x: 8.60, y: 5.5, width: 0.1, height: 1, scale: scale },
+					'300_5': { type: Entity.TYPE_RECTANGLE, id: '300_5', x: 8.60, y: 5.30, width: 0.1, height: 0.5, scale: scale },
+					
+					// right arm
+					'40_1': { type: Entity.TYPE_RECTANGLE, id: '40_1', x: 11.5, y: 3, width: 0.3, height: 2.0, scale: scale },
+					'40_2': { type: Entity.TYPE_RECTANGLE, id: '40_2', x: 11.5, y: 4.5, width: 0.3, height: 1.0, scale: scale },
+					'400_1': { type: Entity.TYPE_RECTANGLE, id: '400_1', x: 11.7, y: 5.4, width: 0.1, height: 0.8, scale: scale },
+					'400_2': { type: Entity.TYPE_RECTANGLE, id: '400_2', x: 11.6, y: 5.5, width: 0.1, height: 1, scale: scale },
+					'400_3': { type: Entity.TYPE_RECTANGLE, id: '400_3', x: 11.5, y: 5.6, width: 0.1, height: 1.2, scale: scale },
+					'400_4': { type: Entity.TYPE_RECTANGLE, id: '400_4', x: 11.4, y: 5.5, width: 0.1, height: 1, scale: scale },
+					/*'400_5': { type: Entity.TYPE_RECTANGLE, id: '400_5', x: 11.30, y: 5.30, width: 0.1, height: 0.5, scale: scale },*/
+					
+					// left leg
+					'50_1': { type: Entity.TYPE_RECTANGLE, id: '50_1', x: 9.4, y: 6, width: 0.4, height: 2.5, scale: scale },
+					'50_2': { type: Entity.TYPE_RECTANGLE, id: '50_2', x: 9.4, y: 8.3, width: 0.4, height: 2.0, scale: scale },
+					// right leg
+					'60_1': { type: Entity.TYPE_RECTANGLE, id: '60_1', x: 10.4, y: 6, width: 0.4, height: 2.5, scale: scale },
+					'60_2': { type: Entity.TYPE_RECTANGLE, id: '60_2', x: 10.4, y: 8.3, width: 0.4, height: 2.0, scale: scale },
+				}
+				
+				var joints = [
+					// Head to neck
+					{ type: Joint.TYPE_REVOLUTE, a: '0', b: '0_1', x: 10, y: 1.0, angle1: ang1, angle2: ang2 },
+					
+					// Neck
+					{ type: Joint.TYPE_REVOLUTE, a: '0_1', b: '0_2', x: 10, y: 1.8, angle1: ang1, angle2: ang2 },
+					{ type: Joint.TYPE_REVOLUTE, a: '0_2', b: '0_3', x: 10, y: 2.2, angle1: ang1, angle2: ang2 },
+					
+					// Neck to trunk
+					{ type: Joint.TYPE_REVOLUTE, a: '0_3', b: '10', x: 10, y: 2.9, angle1: ang1, angle2: ang2 },
+					
+					// Trunk to hips
+					{ type: Joint.TYPE_REVOLUTE, a: '10', b: '20', x: 10, y: 4.5, angle1: ang1, angle2: ang2 },
+					
+					// Trunk to left arm
+					{ type: Joint.TYPE_REVOLUTE, a: '10', b: '30_1', x: 8.5, y: 2.0, angle1: ang1, angle2: Math.PI },
+					// left arm
+					{ type: Joint.TYPE_REVOLUTE, a: '30_1', b: '30_2', x: 8.5, y: 4.0, angle1: 0, angle2: Math.PI*0.4 },
+					// left arm to hand
+					{ type: Joint.TYPE_DISTANCE, a: '30_2', b: '300', x1: 8.5, y1: 5, x2: 8.5, y2: 5 },
+					{ type: Joint.TYPE_REVOLUTE, a: '300', b: '300_1', x: 8.3, y: 5.2 },
+					{ type: Joint.TYPE_REVOLUTE, a: '300', b: '300_2', x: 8.42, y: 5.3 },
+					{ type: Joint.TYPE_REVOLUTE, a: '300', b: '300_3', x: 8.53, y: 5.3 },
+					{ type: Joint.TYPE_REVOLUTE, a: '300', b: '300_4', x: 8.60, y: 5.3 },
+					{ type: Joint.TYPE_REVOLUTE, a: '300', b: '300_5', x: 8.60, y: 5.2 },
+					
+					// Trunk to right arm
+					{ type: Joint.TYPE_REVOLUTE, a: '40_1', b: '10', x: 11.5, y: 2.0, angle1: ang1, angle2: Math.PI },
+					// right arm
+					{ type: Joint.TYPE_REVOLUTE, a: '40_1', b: '40_2', x: 11.5, y: 4.0, angle1: 0, angle2: Math.PI*0.4 },
+					{ type: Joint.TYPE_REVOLUTE, a: '40_2', b: '400_1', x: 11.7, y: 5.0, angle1: ang1, angle2: ang2 },
+					{ type: Joint.TYPE_REVOLUTE, a: '40_2', b: '400_2', x: 11.6, y: 5.0, angle1: ang1, angle2: ang2 },
+					{ type: Joint.TYPE_REVOLUTE, a: '300', b: '400_3', x: 11.5, y: 5.3 },
+					{ type: Joint.TYPE_REVOLUTE, a: '300', b: '400_4', x: 11.4, y: 5.3 },
+					/*{ type: Joint.TYPE_REVOLUTE, a: '300', b: '300_4', x: 8.60, y: 5.3 },
+					{ type: Joint.TYPE_REVOLUTE, a: '300', b: '300_5', x: 8.60, y: 5.2 },
+					*/
+					// Hips to left leg
+					{ type: Joint.TYPE_REVOLUTE, a: '20', b: '50_1', x: 9.4, y: 4.5, angle1: ang1, angle2: ang2 },
+					// Left leg
+					{ type: Joint.TYPE_REVOLUTE, a: '50_1', b: '50_2', x: 9.4, y: 7.25, angle1: ang1, angle2: ang2 },
+					
+					// Hips to right leg
+					{ type: Joint.TYPE_REVOLUTE, a: '20', b: '60_1', x: 10.4, y: 4.5, angle1: ang1, angle2: ang2 },
+					// Right leg
+					{ type: Joint.TYPE_REVOLUTE, a: '60_1', b: '60_2', x: 10.4, y: 7.25, angle1: ang1, angle2: ang2 },
+					
+					//{ type: Joint.TYPE_REVOLUTE, a: 0, b: 10, x: 10, y: 1.5, angle1: -Math.PI * 0.25, angle2: Math.PI * 0.25 },
+					//{ type: Joint.TYPE_DISTANCE, a: 10, b: 20, x1: 10, y1: 3, x2: 10, y2: 5 }
+				]
+			
+				for(var i in entitiesState) {
+					world[i] = Entity.build(entitiesState[i]);
+				}
+				box = new bSkeleton(60, false, canvasWidth, canvasHeight, scale);
+				box.setBodies(world);
+				box.setJoints(joints);
+				
+				var debugDraw = new Box2D.Dynamics.b2DebugDraw();
+				debugDraw.SetSprite(ctx);
+				debugDraw.SetDrawScale(scale);
+				debugDraw.SetFillAlpha(0.5);
+				debugDraw.SetLineThickness(1.0);
+				debugDraw.SetFlags(Box2D.Dynamics.b2DebugDraw.e_shapeBit | Box2D.Dynamics.b2DebugDraw.e_jointBit);
+				box.world.SetDebugDraw(debugDraw);
+				
+				document.addEventListener('mousedown', function(e) {
+					isMouseDown = true;
+					handleMouseMove(e);
+					document.addEventListener('mousemove', handleMouseMove, true);
+				}, true);
+			
+				document.addEventListener('mouseup', function() {
+					document.removeEventListener('mousemove', handleMouseMove, true);
+					isMouseDown = false;
+					mouseX = undefined;
+					mouseY = undefined;
+				}, true);
+				
+				(function loop(animStart) {
+					update(animStart);
+					draw();
+					requestAnimFrame(loop);
+				})();
+				
+			}
+			
+			document.addEventListener('DOMContentLoaded', function() {
+				init();
+				
+				
+			});
+			
+		</script>
+		
+	</body>
+</html>
