@@ -3,7 +3,7 @@
 
 ## Video
 
-Not yet!
+[Here](https://www.youtube.com/watch?v=K-m98fNyjtw).
 
 ## View slides online
 
